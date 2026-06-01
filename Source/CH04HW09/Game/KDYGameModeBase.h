@@ -11,4 +11,6 @@ class CH04HW09_API AKDYGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
 	
+public:
+	virtual void OnPostLogin(AController* NewPlayer) override;
 };

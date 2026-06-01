@@ -5,6 +5,7 @@
 #include "UI/KDYChatInput.h"
 #include <Kismet/KismetSystemLibrary.h>
 #include "CH04HW09/CH04HW09.h"
+#include "EngineUtils.h"
 
 void AKDYPlayerController::BeginPlay()
 {
@@ -33,13 +34,43 @@ void AKDYPlayerController::SetChatMessageString(const FString& InChatMessageStri
 {
 	ChatMessageString = InChatMessageString;
 
-	PrintChatMessageString(ChatMessageString);
+	//PrintChatMessageString(ChatMessageString);
+	if (IsLocalController())
+	{
+		ServerRPCPrintChatMessageString(InChatMessageString);
+	}
 }
 
 void AKDYPlayerController::PrintChatMessageString(const FString& InChatMessageString)
 {
-	UKismetSystemLibrary::PrintString(this, ChatMessageString, true, true, FLinearColor::Green, 5.0f);
+	UKismetSystemLibrary::PrintString(this, InChatMessageString, true, true, FLinearColor::Green, 5.0f);
+		//디버깅 포인트 1 -> 각 클라에 메시지가 다르게 출력된것
+	
+	
 	//FString NetModeString = HW09FunctionLibrary::GetNetModeString(this);
 	//FString CombinedMessageString = FString::Printf(TEXT("%s: %s"), *NetModeString, *InChatMessageString);
 	//HW09FunctionLibrary::MyPrintString(this, CombinedMessageString, 10.f);
 }
+
+void AKDYPlayerController::ClientRPCPrintChatMessageString_Implementation(const FString& InChatMessageString)
+{
+	PrintChatMessageString(InChatMessageString); //입력메세지 출력
+}
+
+void AKDYPlayerController::ServerRPCPrintChatMessageString_Implementation(const FString& InChatMessageString)
+{
+	for (TActorIterator<AKDYPlayerController> It(GetWorld()); It; ++It) 
+			//It -> Iterator의 약자
+			//TActorIterator -> 언리얼 월드에 존재하는특정 타입의 액터를 순회하는 반복자 클래스
+			//GetWorld() -> 어느 월드에서 찾을건가요?
+	{
+		AKDYPlayerController* KDYPlayerController = *It;
+		if (IsValid(KDYPlayerController))
+		{
+			KDYPlayerController->ClientRPCPrintChatMessageString(InChatMessageString);
+				//해당 텍스트를 클라이언트에 뿌려줌
+		}
+	}
+}
+
+

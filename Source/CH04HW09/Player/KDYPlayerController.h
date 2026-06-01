@@ -20,6 +20,12 @@ public:
 
 	void PrintChatMessageString(const FString& InChatMessageString);
 
+	UFUNCTION(Client, Reliable) //클라이언트로 보내기위함
+	void ClientRPCPrintChatMessageString(const FString& InChatMessageString);
+	
+	UFUNCTION(Server, Reliable) // Server metadata -> 서버로 보내기위함, Reliable-> 챗메세지가 날아가지 않게끔
+	void ServerRPCPrintChatMessageString(const FString& InChatMessageString);
+
 protected:
 	//채팅 위젯 연결
 	UPROPERTY(EditDefaultsOnly)

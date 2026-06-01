@@ -52,4 +52,20 @@ public:
 		return NetModeString;
 	}
 
+	static FString GetRoleString(const AActor* InActor) //디버깅 유틸리티 함수 : 현재 서버, 클라이언트의 NetRole확인 
+	{
+		FString RoleString = TEXT("None");
+
+		if (IsValid(InActor) == true)
+		{
+				//UEnum::GetValueAsString -> UEnum의 값을 String으로 변환해줌
+			FString LocalRoleString = UEnum::GetValueAsString(TEXT("Engine.ENetRole"), InActor->GetLocalRole());
+			FString RemoteRoleString = UEnum::GetValueAsString(TEXT("Engine.ENetRole"), InActor->GetRemoteRole());
+
+			RoleString = FString::Printf(TEXT("%s / %s"), *LocalRoleString, *RemoteRoleString);
+		}
+
+		return RoleString;
+	}
+
 };
