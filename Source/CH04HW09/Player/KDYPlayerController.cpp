@@ -3,9 +3,11 @@
 
 #include "Player/KDYPlayerController.h"
 #include "UI/KDYChatInput.h"
-#include <Kismet/KismetSystemLibrary.h>
+#include "Kismet/KismetSystemLibrary.h"
 #include "CH04HW09/CH04HW09.h"
 #include "EngineUtils.h"
+#include "Game/KDYGameModeBase.h"
+#include "Kismet/GameplayStatics.h"
 
 void AKDYPlayerController::BeginPlay()
 {
@@ -59,16 +61,27 @@ void AKDYPlayerController::ClientRPCPrintChatMessageString_Implementation(const 
 
 void AKDYPlayerController::ServerRPCPrintChatMessageString_Implementation(const FString& InChatMessageString)
 {
-	for (TActorIterator<AKDYPlayerController> It(GetWorld()); It; ++It) 
-			//It -> Iterator의 약자
-			//TActorIterator -> 언리얼 월드에 존재하는특정 타입의 액터를 순회하는 반복자 클래스
-			//GetWorld() -> 어느 월드에서 찾을건가요?
+		// 아래로직은 GameModeBase의 PrintChatMessageString에 존재
+	//for (TActorIterator<AKDYPlayerController> It(GetWorld()); It; ++It) 
+	//		//It -> Iterator의 약자
+	//		//TActorIterator -> 언리얼 월드에 존재하는특정 타입의 액터를 순회하는 반복자 클래스
+	//		//GetWorld() -> 어느 월드에서 찾을건가요?
+	//{
+	//	AKDYPlayerController* KDYPlayerController = *It;
+	//	if (IsValid(KDYPlayerController))
+	//	{
+	//		KDYPlayerController->ClientRPCPrintChatMessageString(InChatMessageString);
+	//			//해당 텍스트를 클라이언트에 뿌려줌
+	//	}
+	//}
+
+	AGameModeBase* GM = UGameplayStatics::GetGameMode(this);//GameModeBase를 얻어옴
+	if (IsValid(GM) == true)
 	{
-		AKDYPlayerController* KDYPlayerController = *It;
-		if (IsValid(KDYPlayerController))
+		AKDYGameModeBase* CXGM = Cast<AKDYGameModeBase>(GM);
+		if (IsValid(CXGM) == true)
 		{
-			KDYPlayerController->ClientRPCPrintChatMessageString(InChatMessageString);
-				//해당 텍스트를 클라이언트에 뿌려줌
+			CXGM->PrintChatMessageString(this, InChatMessageString); //GameModeBase의 프린트챗메시지 로직수행
 		}
 	}
 }
