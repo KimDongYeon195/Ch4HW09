@@ -29,6 +29,14 @@ public:
 		//정답과 유추번호 대조
 	FString JudgeResult(const FString& InSecretNumberString, const FString& InGuessNumberString);
 
+		//유추횟수 증가
+	void IncreaseGuessCount(AKDYPlayerController* InChattingPlayerController);
+
+		//조건 만족시 게임리셋
+	void ResetGame();
+
+		//게임의 승패 판단(숫자를 기회안에 맞췄는지 아닌지)
+	void JudgeGame(AKDYPlayerController* InChatingPlayerController, int InStrikeCount);
 protected:
 		//정답숫자 캐싱
 	FString SecretNumberString; 

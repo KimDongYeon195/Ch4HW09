@@ -7,6 +7,7 @@
 #include "KDYPlayerController.generated.h"
 
 class UKDYChatInput;
+class UUserWidget;
 
 UCLASS()
 class CH04HW09_API AKDYPlayerController : public APlayerController
@@ -14,6 +15,8 @@ class CH04HW09_API AKDYPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	AKDYPlayerController();
+
 	virtual void BeginPlay() override;
 
 	void SetChatMessageString(const FString& InChatMessageString);
@@ -26,6 +29,7 @@ public:
 	UFUNCTION(Server, Reliable) // Server metadata -> 서버로 보내기위함, Reliable-> 챗메세지가 날아가지 않게끔
 	void ServerRPCPrintChatMessageString(const FString& InChatMessageString);
 
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 protected:
 	//채팅 위젯 연결
 	UPROPERTY(EditDefaultsOnly)
@@ -35,5 +39,16 @@ protected:
 	TObjectPtr<UKDYChatInput> ChatInputWidgetInstance;
 
 	FString ChatMessageString;
+
+public:
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UUserWidget> NotificationTextWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> NotificationTextWidgetInstance;
+
+public:
+	UPROPERTY(Replicated,BlueprintReadOnly)
+	FText NotificationText;
 	
 };

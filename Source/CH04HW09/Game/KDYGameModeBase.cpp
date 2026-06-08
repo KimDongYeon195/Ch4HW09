@@ -5,21 +5,32 @@
 #include "Game/KDYGameStateBase.h"
 #include "Player/KDYPlayerController.h"
 #include "EngineUtils.h"
+#include "Player/KDYPlayerState.h"
 
 void AKDYGameModeBase::OnPostLogin(AController* NewPlayer) //로그인 후 호출 -> 컨트롤러를 넣어줌
 {
 	Super::OnPostLogin(NewPlayer); //게임에 접속(로그인) 할때마다.
 
-	AKDYGameStateBase* KDYGameStateBase = GetGameState<AKDYGameStateBase>(); //GSB를 가져오고
-	if (IsValid(KDYGameStateBase)) //유효하다면
-	{
-		KDYGameStateBase->MulticastRPCBroadcastLoginMessage(TEXT("XXXXXXX")); //로그인메세지 브로드캐스트
-	}
-
 	AKDYPlayerController* KDYPlayerController = Cast<AKDYPlayerController>(NewPlayer);
 	if (IsValid(KDYPlayerController))
 	{
-		AllPlayerControllers.Add(KDYPlayerController);//플레이어 컨트롤러 형변환 하여 컨테이너에 저장
+			//게임모드(서버)에서 플레이어컨트롤러의 속성을 변경했으므로 플레이어컨트롤러는 레플리케이티드 됨
+		KDYPlayerController->NotificationText = FText::FromString(TEXT("Connected to the Game server."));
+		AllPlayerControllers.Add(KDYPlayerController);
+
+		AKDYPlayerState* KDYPlayerState = KDYPlayerController->GetPlayerState<AKDYPlayerState>(); //플레이어 스테이트 가져오기
+		if (IsValid(KDYPlayerState))
+		{
+			//플레이어네임String출력(Player 1,2,3,...)
+			KDYPlayerState->PlayerNameString = TEXT("Player") + FString::FromInt(AllPlayerControllers.Num()); 
+			//PlayerState의 특정 속성을 변경하고있음 -> 레플리케이션
+		}
+
+		AKDYGameStateBase* KDYGameStateBase = GetGameState<AKDYGameStateBase>(); //GSB를 가져오고
+		if (IsValid(KDYGameStateBase)) //유효하다면
+		{
+			KDYGameStateBase->MulticastRPCBroadcastLoginMessage(KDYPlayerState->PlayerNameString); //로그인메세지 브로드캐스트
+		}
 	}
 }
 
@@ -38,17 +49,22 @@ void AKDYGameModeBase::PrintChatMessageString(AKDYPlayerController* InChattingPl
 	FString ChatMeddageString = InChatMessageString;
 	int Index = InChatMessageString.Len() - 3;// 뒤에서 3개만 봄
 	FString GuessNumberString = InChatMessageString.RightChop(Index);//오른쪽부터 Index만큼 컷하고 나머지 오른쪽 값
-	if (IsGuessNumberString(GuessNumberString) == true) //제출한 숫자가 GuessNumber인지
+	if (IsGuessNumberString(GuessNumberString)) //제출한 숫자가 GuessNumber인지
 	{
 		FString JudgeResultString = JudgeResult(SecretNumberString, GuessNumberString); //JudgeReulst() 함수 호출하여 판단.
+		IncreaseGuessCount(InChattingPlayerController); //게임 중에만 카운트가 올라감
 		for (TActorIterator<AKDYPlayerController> It(GetWorld()); It; ++It)
 		{
 			AKDYPlayerController* KDYPlayerControllers = *It; //컨트롤러 전체를 순회돌면서 그 값을
-			if (IsValid(KDYPlayerControllers) == true)
+			if (IsValid(KDYPlayerControllers))
 			{
 					//String 컴바인 "입력숫자 -> ?S?B"
 				FString CombinedMessageString = InChatMessageString + TEXT(" -> ") + JudgeResultString;
 				KDYPlayerControllers->ClientRPCPrintChatMessageString(CombinedMessageString); //클라이언트 RPC에 전송
+
+					//FCString::Atoi(원본값의 왼쪽 1글자) -> 문자열을 정수로 변환(2S1B에서 왼쪽 2만 정수로 변환)
+				int32 StrikeCount = FCString::Atoi(*JudgeResultString.Left(1));
+				JudgeGame(InChattingPlayerController, StrikeCount);
 			}
 		}
 	}
@@ -151,5 +167,73 @@ FString AKDYGameModeBase::JudgeResult(const FString& InSecretNumberString, const
 	}
 
 	return FString::Printf(TEXT("%dS%dB"), StrikeCount, BallCount); //출력
+}
+
+void AKDYGameModeBase::IncreaseGuessCount(AKDYPlayerController* InChattingPlayerController)
+{
+	AKDYPlayerState* KDYPlayerState = InChattingPlayerController->GetPlayerState<AKDYPlayerState>();
+	if (IsValid(KDYPlayerState))
+	{
+		KDYPlayerState->CurrentGuessCount++;
+	}
+}
+
+void AKDYGameModeBase::ResetGame()
+{
+	SecretNumberString = GenerateSecretNumber();
+
+	for (const auto& KDYPlayerController : AllPlayerControllers)
+	{
+		AKDYPlayerState* KDYPlayerState = KDYPlayerController->GetPlayerState<AKDYPlayerState>();
+		if (IsValid(KDYPlayerState))
+		{
+			KDYPlayerState->CurrentGuessCount = 0;
+		}
+	}
+}
+
+void AKDYGameModeBase::JudgeGame(AKDYPlayerController* InChatingPlayerController, int InStrikeCount)
+		//채팅 플레이어와 스트라이크 카운트를 넣어준다.
+{
+	if (InStrikeCount == 3)
+	{
+			//플레이어스테이트에서 채팅플레이어컨트롤러 가져오기
+		AKDYPlayerState* KDYPlayerState = InChatingPlayerController->GetPlayerState<AKDYPlayerState>();
+		for (const auto& KDYPlayerController : AllPlayerControllers) //한번씩 다 순회하라.
+		{
+				//"Player N has won the game"
+			FString CombinedMessageString = KDYPlayerState->PlayerNameString + TEXT("has won the game.");
+				//NotificationText에 출력
+			KDYPlayerController->NotificationText = FText::FromString(CombinedMessageString);
+
+			ResetGame(); //리셋게임
+		}
+	}
+	else
+	{
+		bool bIsDraw = true; //일단 비겼다고 가정
+		for (const auto& KDYPlayerController : AllPlayerControllers) //모든플레이어들을 순회
+		{
+			AKDYPlayerState* KDYPlayerState = KDYPlayerController->GetPlayerState<AKDYPlayerState> ();
+			if (IsValid(KDYPlayerState))
+			{
+					//아무도 정답을 맞추지 못하고 기회를 모두 소진했을때
+				if (KDYPlayerState->CurrentGuessCount < KDYPlayerState->MaxGuessCount)
+				{
+					bIsDraw = false;
+					break;
+				}
+			}
+		}
+		if (true == bIsDraw)
+		{
+			for (const auto& KDYPlayerController : AllPlayerControllers)
+			{
+				KDYPlayerController->NotificationText = FText::FromString(TEXT("Draw..."));
+
+				ResetGame();
+			}
+		}
+	}
 }
 

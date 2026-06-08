@@ -8,6 +8,13 @@
 #include "EngineUtils.h"
 #include "Game/KDYGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "Player/KDYPlayerState.h"
+#include "Net/UnrealNetwork.h"
+
+AKDYPlayerController::AKDYPlayerController()
+{
+	bReplicates = true;// 액터를 레플리케이티드하기위한 필수 조건
+}
 
 void AKDYPlayerController::BeginPlay()
 {
@@ -30,6 +37,15 @@ void AKDYPlayerController::BeginPlay()
 			ChatInputWidgetInstance->AddToViewport(); //위젯 인스턴스를 화면에 보이기
 		}
 	}
+
+	if(IsValid(NotificationTextWidgetClass))
+	{
+		NotificationTextWidgetInstance = CreateWidget<UUserWidget>(this, NotificationTextWidgetClass);
+		if (IsValid(NotificationTextWidgetInstance))
+		{
+			NotificationTextWidgetInstance->AddToViewport(); //위젯 인스턴스 뷰포트에 보이기
+		}
+	}
 }
 
 void AKDYPlayerController::SetChatMessageString(const FString& InChatMessageString)
@@ -39,7 +55,12 @@ void AKDYPlayerController::SetChatMessageString(const FString& InChatMessageStri
 	//PrintChatMessageString(ChatMessageString);
 	if (IsLocalController())
 	{
-		ServerRPCPrintChatMessageString(InChatMessageString);
+		AKDYPlayerState* KDYPlayerState = GetPlayerState<AKDYPlayerState>();
+		if (IsValid(KDYPlayerState))
+		{
+			FString CombinedMessageString = KDYPlayerState->GetPlayerInfoString() + TEXT(": ") + InChatMessageString;
+			ServerRPCPrintChatMessageString(CombinedMessageString);
+		}
 	}
 }
 
@@ -52,6 +73,13 @@ void AKDYPlayerController::PrintChatMessageString(const FString& InChatMessageSt
 	//FString NetModeString = HW09FunctionLibrary::GetNetModeString(this);
 	//FString CombinedMessageString = FString::Printf(TEXT("%s: %s"), *NetModeString, *InChatMessageString);
 	//HW09FunctionLibrary::MyPrintString(this, CombinedMessageString, 10.f);
+}
+
+void AKDYPlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ThisClass, NotificationText);
 }
 
 void AKDYPlayerController::ClientRPCPrintChatMessageString_Implementation(const FString& InChatMessageString)
