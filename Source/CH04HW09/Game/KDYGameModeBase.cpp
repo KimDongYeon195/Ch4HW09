@@ -39,13 +39,31 @@ void AKDYGameModeBase::BeginPlay()
 	Super::BeginPlay();
 
 	SecretNumberString = GenerateSecretNumber();
-	UE_LOG(LogTemp, Warning,TEXT("%s"), *SecretNumberString)
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *SecretNumberString)
+
+		//GameStateBase에 설정했던 타이머 실행
+	AKDYGameStateBase* KDYGameStateBase = GetGameState<AKDYGameStateBase>();
+	if (IsValid(KDYGameStateBase))
+	{
+		KDYGameStateBase->StartTurnTimer();
+	}
 }
 
 //아래로직은 서버에서 처리해야한다.
 
 void AKDYGameModeBase::PrintChatMessageString(AKDYPlayerController* InChattingPlayerController, const FString& InChatMessageString)
 {
+	AKDYGameStateBase* KDYGameStateBase = GetGameState<AKDYGameStateBase>();
+	if (IsValid(KDYGameStateBase))
+	{
+		if (KDYGameStateBase->TurnTimeRemaining <= KINDA_SMALL_NUMBER)
+		{
+			InChattingPlayerController->ClientRPCPrintChatMessageString(TEXT("시간초과! 횟수가 차감되고 턴이 넘어갑니다!"));
+
+			return;
+		}
+	}
+
 	FString ChatMeddageString = InChatMessageString;
 	int Index = InChatMessageString.Len() - 3;// 뒤에서 3개만 봄
 	FString GuessNumberString = InChatMessageString.RightChop(Index);//오른쪽부터 Index만큼 컷하고 나머지 오른쪽 값

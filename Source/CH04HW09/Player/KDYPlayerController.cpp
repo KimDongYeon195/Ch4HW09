@@ -46,6 +46,15 @@ void AKDYPlayerController::BeginPlay()
 			NotificationTextWidgetInstance->AddToViewport(); //위젯 인스턴스 뷰포트에 보이기
 		}
 	}
+
+	if (IsValid(TimerWidgetClass))
+	{
+		TimerWidgetInstance = CreateWidget<UUserWidget>(this, TimerWidgetClass);
+		if (IsValid(TimerWidgetInstance))
+		{
+			TimerWidgetInstance->AddToViewport();
+		}
+	}
 }
 
 void AKDYPlayerController::SetChatMessageString(const FString& InChatMessageString)
